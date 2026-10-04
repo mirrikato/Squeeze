@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>AMApplicationBuild</key><string>523</string>
+	<key>AMApplicationVersion</key><string>2.10</string>
+	<key>AMDocumentVersion</key><string>2</string>
+	<key>actions</key>
+	<array>
+		<dict>
+			<key>action</key>
+			<dict>
+				<key>AMAccepts</key>
+				<dict>
+					<key>Container</key><string>List</string>
+					<key>Optional</key><true/>
+					<key>Types</key><array><string>com.apple.cocoa.string</string></array>
+				</dict>
+				<key>AMActionVersion</key><string>2.0.3</string>
+				<key>AMApplication</key><array><string>Automator</string></array>
+				<key>AMParameterProperties</key>
+				<dict>
+					<key>COMMAND_STRING</key><dict/>
+					<key>CheckedForUserDefaultShell</key><dict/>
+					<key>inputMethod</key><dict/>
+					<key>shell</key><dict/>
+					<key>source</key><dict/>
+				</dict>
+				<key>AMProvides</key>
+				<dict>
+					<key>Container</key><string>List</string>
+					<key>Types</key><array><string>com.apple.cocoa.string</string></array>
+				</dict>
+				<key>ActionBundlePath</key><string>/System/Library/Automator/Run Shell Script.action</string>
+				<key>ActionName</key><string>Run Shell Script</string>
+				<key>ActionParameters</key>
+				<dict>
+					<key>COMMAND_STRING</key><string>export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+export HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 HOMEBREW_NO_ENV_HINTS=1
+PREF="$HOME/Library/Application Support/Squeeze"
+LOG="$HOME/Library/Logs/Squeeze.log"; mkdir -p "$HOME/Library/Logs"
+{
+  echo "---- $(date) Squeeze v1.0 ----"
+  echo "brew: $(command -v brew || echo missing)"
+  echo "gs: $(command -v gs || echo missing)"
+  echo "pngquant: $(command -v pngquant || echo missing)"
+  echo "declined marker: $([ -f "$PREF/declined" ] &amp;&amp; echo yes || echo no)"
+} &gt;&gt;"$LOG"
+# If Homebrew exists but the helpers don't, offer once to install them.
+if command -v brew &gt;/dev/null 2&gt;&amp;1 &amp;&amp; [ ! -f "$PREF/declined" ] &amp;&amp; \
+   { ! command -v gs &gt;/dev/null 2&gt;&amp;1 || ! command -v pngquant &gt;/dev/null 2&gt;&amp;1; }; then
+  answer=$(osascript 2&gt;&gt;"$LOG" &lt;&lt;'AS'
+tell application "System Events"
+  activate
+  set r to display dialog "Homebrew is installed on this Mac. Squeeze can use it to add Ghostscript and pngquant for sharper PDFs and smaller PNGs. Install them now? It takes about a minute." buttons {"Not Now", "Install"} default button "Install" with title "Squeeze"
+  return button returned of r
+end tell
+AS
+)
+  echo "dialog answer: '$answer'" &gt;&gt;"$LOG"
+  if [ "$answer" = "Install" ]; then
+    osascript -e 'display notification "Installing helpers, this may take a minute..." with title "Squeeze"'
+    if brew install ghostscript pngquant &gt;&gt;"$LOG" 2&gt;&amp;1; then
+      osascript -e 'display notification "Helpers installed" with title "Squeeze"'
+    else
+      osascript -e 'display notification "Install failed, using built-in macOS tools" with title "Squeeze"'
+    fi
+  elif [ "$answer" = "Not Now" ]; then
+    mkdir -p "$PREF" &amp;&amp; touch "$PREF/declined"
+  fi
+fi
+LOG="$HOME/Library/Logs/Squeeze.log"
+FILTER=$(ls /System/Library/Filters/Reduce\ File\ Size.* 2&gt;/dev/null | head -1)
+saved=0
+for f in "$@"; do
+  out="${f%.*}-small.pdf"
+  if command -v gs &gt;/dev/null 2&gt;&amp;1; then
+    gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.5 -dPDFSETTINGS=/ebook -dNOPAUSE -dQUIET -dBATCH -sOutputFile="$out" "$f" 2&gt;&gt;"$LOG"
+  else
+    /usr/bin/osascript -l JavaScript - "$f" "$out" "$FILTER" 2&gt;&gt;"$LOG" &lt;&lt;'JXA'
+ObjC.import('Quartz');
+function run(argv) {
+  var doc = $.PDFDocument.alloc.initWithURL($.NSURL.fileURLWithPath(argv[0]));
+  var filter = $.QuartzFilter.quartzFilterWithURL($.NSURL.fileURLWithPath(argv[2]));
+  var opts = $.NSDictionary.dictionaryWithObjectForKey(filter, 'QuartzFilter');
+  doc.writeToFileWithOptions(argv[1], opts);
+}
+JXA
+  fi
+  if [ -f "$out" ] &amp;&amp; [ "$(stat -f%z "$out")" -lt "$(stat -f%z "$f")" ]; then
+    saved=$((saved + 1))
+  else
+    echo "$(date): no size reduction for $f" &gt;&gt;"$LOG"
+    rm -f "$out"
+  fi
+done
+osascript -e "display notification \"Squeezed $saved of $# PDF(s)\" with title \"Squeeze\""</string>
+					<key>CheckedForUserDefaultShell</key><true/>
+					<key>inputMethod</key><integer>1</integer>
+					<key>shell</key><string>/bin/bash</string>
+					<key>source</key><string></string>
+				</dict>
+				<key>BundleIdentifier</key><string>com.apple.RunShellScript</string>
+				<key>CFBundleVersion</key><string>2.0.3</string>
+				<key>CanShowSelectedItemsWhenRun</key><false/>
+				<key>CanShowWhenRun</key><true/>
+				<key>Category</key><array><string>AMCategoryUtilities</string></array>
+				<key>Class Name</key><string>RunShellScriptAction</string>
+				<key>InputUUID</key><string>3a1eb2b5-70bc-4a3e-af63-8ff7c4af2c2d</string>
+				<key>Keywords</key><array><string>Shell</string><string>Script</string></array>
+				<key>OutputUUID</key><string>6004efcc-eabc-4ecf-8f33-c07ca1eea525</string>
+				<key>UUID</key><string>40a8c673-95c1-4c26-9a75-e9909c5b968f</string>
+				<key>UnlocalizedApplications</key><array><string>Automator</string></array>
+				<key>arguments</key>
+				<dict>
+					<key>0</key><dict><key>default value</key><integer>0</integer><key>name</key><string>inputMethod</string><key>required</key><string>0</string><key>type</key><string>0</string><key>uuid</key><string>0</string></dict>
+					<key>1</key><dict><key>default value</key><string></string><key>name</key><string>source</string><key>required</key><string>0</string><key>type</key><string>0</string><key>uuid</key><string>1</string></dict>
+					<key>2</key><dict><key>default value</key><false/><key>name</key><string>CheckedForUserDefaultShell</string><key>required</key><string>0</string><key>type</key><string>0</string><key>uuid</key><string>2</string></dict>
+					<key>3</key><dict><key>default value</key><string></string><key>name</key><string>COMMAND_STRING</string><key>required</key><string>0</string><key>type</key><string>0</string><key>uuid</key><string>3</string></dict>
+					<key>4</key><dict><key>default value</key><string>/bin/sh</string><key>name</key><string>shell</string><key>required</key><string>0</string><key>type</key><string>0</string><key>uuid</key><string>4</string></dict>
+				</dict>
+				<key>isViewVisible</key><integer>1</integer>
+				<key>location</key><string>309.000000:253.000000</string>
+				<key>nibPath</key><string>/System/Library/Automator/Run Shell Script.action/Contents/Resources/Base.lproj/main.nib</string>
+			</dict>
+			<key>isViewVisible</key><integer>1</integer>
+		</dict>
+	</array>
+	<key>connectors</key><dict/>
+	<key>workflowMetaData</key>
+	<dict>
+		<key>applicationBundleID</key><string>com.apple.finder</string>
+		<key>applicationPath</key><string>/System/Library/CoreServices/Finder.app</string>
+		<key>inputTypeIdentifier</key><string>com.apple.Automator.fileSystemObject.PDF</string>
+		<key>outputTypeIdentifier</key><string>com.apple.Automator.nothing</string>
+		<key>presentationMode</key><integer>15</integer>
+		<key>processesInput</key><integer>0</integer>
+		<key>serviceApplicationBundleID</key><string>com.apple.finder</string>
+		<key>serviceApplicationPath</key><string>/System/Library/CoreServices/Finder.app</string>
+		<key>serviceInputTypeIdentifier</key><string>com.apple.Automator.fileSystemObject.PDF</string>
+		<key>serviceOutputTypeIdentifier</key><string>com.apple.Automator.nothing</string>
+		<key>serviceProcessesInput</key><integer>0</integer>
+		<key>systemImageName</key><string>NSTouchBarExitFullScreenTemplate</string>
+		<key>useAutomaticInputType</key><integer>0</integer>
+		<key>workflowTypeIdentifier</key><string>com.apple.Automator.servicesMenu</string>
+	</dict>
+</dict>
+</plist>
